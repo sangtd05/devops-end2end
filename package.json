@@ -6,8 +6,10 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "jest",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
     "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "docker:build": "docker build -t devops-end2end-app .",
     "docker:run": "docker run -p 3000:3000 devops-end2end-app"
   },
