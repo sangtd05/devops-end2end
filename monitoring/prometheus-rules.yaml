@@ -1,0 +1,101 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: devops-app-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: devops-app.rules
+    rules:
+    - alert: HighErrorRate
+      expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High error rate detected"
+        description: "Error rate is {{ $value }} errors per second for the last 5 minutes"
+
+    - alert: HighResponseTime
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High response time detected"
+        description: "95th percentile response time is {{ $value }} seconds"
+
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod is crash looping"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is crash looping"
+
+    - alert: PodNotReady
+      expr: kube_pod_status_phase{phase!="Running",phase!="Succeeded"} > 0
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod is not ready"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is not ready"
+
+    - alert: HighCPUUsage
+      expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is {{ $value }}% on node {{ $labels.instance }}"
+
+    - alert: HighMemoryUsage
+      expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is {{ $value }}% on node {{ $labels.instance }}"
+
+    - alert: DiskSpaceLow
+      expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Low disk space"
+        description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+    - alert: KubernetesNodeNotReady
+      expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Kubernetes node not ready"
+        description: "Node {{ $labels.node }} is not ready"
+
+    - alert: KubernetesPodPending
+      expr: kube_pod_status_phase{phase="Pending"} > 0
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod is pending"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is pending"
+
+    - alert: KubernetesDeploymentReplicasMismatch
+      expr: kube_deployment_status_replicas_available != kube_deployment_spec_replicas
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Deployment replicas mismatch"
+        description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has {{ $value }} available replicas but {{ $value }} desired"
